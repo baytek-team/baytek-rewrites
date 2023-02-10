@@ -8,7 +8,7 @@
  * Author URI: https://www.baytek.ca
  * Text Domain: baytek-rewrites
  * Domain Path: /resources/assets/languages/
- * Update URI:  https://github.com/baytek-team/baytek-rewrites/tbd/dist/info.json
+ * Update URI:  https://github.com/baytek-team/baytek-rewrites/raw/main/dist/info.json
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License

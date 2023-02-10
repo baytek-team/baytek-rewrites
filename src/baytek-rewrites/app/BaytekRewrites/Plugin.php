@@ -63,7 +63,7 @@ class Plugin extends BasePlugin {
 		}
 
 		$remote = wp_remote_get( 
-			'https://github.com/baytek-team/baytek-rewrites/tbd/dist/info.json',
+			'https://github.com/baytek-team/baytek-rewrites/raw/main/dist/info.json',
 			array(
 				'timeout' => 10,
 				'headers' => array(
