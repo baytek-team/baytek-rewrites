@@ -16,19 +16,14 @@ if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
 
 class Updates extends System {
 	/**
-	 * Track whether we have checked the plugin updates transient
-	 */
-	protected $checked = false;
-
-	/**
-	 * Plugin main file
-	 */
-	protected $file = 'baytek-rewrites/main.php';
-
-	/**
 	 * Remote info URL
 	 */
 	protected $infoUrl = 'https://github.com/baytek-team/baytek-rewrites/raw/main/dist/info.json';
+
+	/**
+	 * Cache key
+	 */
+	protected $cacheKey = 'baytek_rewrites_updates';
 
 	/**
 	 * Add the plugin's actions and filters for existing content
@@ -38,7 +33,7 @@ class Updates extends System {
 		add_filter('plugins_api', [$this, 'filterPluginsApi'], 20, 3);
 
 		//Filter the plugin updates transient to check our private repo
-		add_filter('transient_update_plugins', [$this, 'checkForUpdates']);
+		// add_filter('transient_update_plugins', [$this, 'checkForUpdates']);
 		add_filter('site_transient_update_plugins', [$this, 'checkForUpdates']);
 	}
 
@@ -56,36 +51,21 @@ class Updates extends System {
 	 */
 	public function filterPluginsApi($res, $action, $args) {
 		// do nothing if this is not about getting plugin information
-		if ( 'plugin_information' !== $action ) {
+		if ('plugin_information' !== $action) {
 			return $res;
 		}
 
 		// do nothing if it is not our plugin
-		if ( $this->file !== $args->slug ) {
+		if ('baytek-rewrites' !== $args->slug) {
 			return $res;
 		}
 
 		// info.json is the file with the actual plugin information on your server
-		$remote = wp_remote_get( 
-			$this->infoUrl, 
-			array(
-				'timeout' => 10,
-				'headers' => array(
-					'Accept' => 'application/json'
-				) 
-			)
-		);
+		$remote = $this->requestRemoteData();
 
-		// do nothing if we don't get the correct response from the server
-		if( 
-			is_wp_error( $remote )
-			|| 200 !== wp_remote_retrieve_response_code( $remote )
-			|| empty( wp_remote_retrieve_body( $remote ) )
-		) {
-			return $res;	
+		if (!$remote) {
+			return $res;
 		}
-
-		$remote = json_decode( wp_remote_retrieve_body( $remote ) );
 		
 		$res = new stdClass();
 		$res->name = $remote->name;
@@ -98,6 +78,9 @@ class Updates extends System {
 		$res->download_link = $remote->download_url;
 		$res->trunk = $remote->download_url;
 		$res->last_updated = $remote->last_updated;
+		$res->sections = [
+			'description' => $remote->sections->description
+		];
 		
 		return $res;
 	}
@@ -110,40 +93,13 @@ class Updates extends System {
 	 * @see https://rudrastyh.com/wordpress/self-hosted-plugin-update.html
 	 */
 	public function checkForUpdates($transient) {
-		//Only check once
-		if ($this->checked) {
-			return $transient;
-		}
-
-		//Set the flag
-		$this->checked = true;
-
 		//Do the checking
 		if ( empty( $transient->checked ) ) {
 			return $transient;
 		}
 
-		$remote = wp_remote_get( 
-			$this->infoUrl,
-			array(
-				'timeout' => 10,
-				'headers' => array(
-					'Accept' => 'application/json'
-				)
-			)
-		);
-
-		if ( 
-			is_wp_error( $remote )
-			|| 200 !== wp_remote_retrieve_response_code( $remote )
-			|| empty( wp_remote_retrieve_body( $remote ) )
-		) {
-			return $transient;
-		}
-
-		$remote = json_decode( wp_remote_retrieve_body( $remote ) );
+		$remote = $this->requestRemoteData();
 	 
-		// your installed plugin version should be on the line below! You can obtain it dynamically of course 
 		if (
 			$remote
 			&& version_compare( Plugin::VERSION, $remote->version, '<' )
@@ -153,7 +109,7 @@ class Updates extends System {
 			
 			$res = new stdClass();
 			$res->slug = $remote->slug;
-			$res->plugin = $this->file;
+			$res->plugin = 'baytek-rewrites/main.php';
 			$res->new_version = $remote->version;
 			$res->tested = $remote->tested;
 			$res->package = $remote->download_url;
@@ -162,5 +118,44 @@ class Updates extends System {
 		}
 	 
 		return $transient;
+	}
+
+	/**
+	 * Get the remote plugin data and save as a transient option
+	 * 
+	 * @return  The remote plugin data
+	 * 
+	 * @see https://github.com/rudrastyh/misha-update-checker/blob/main/misha-update-checker.php
+	 */
+	protected function requestRemoteData() {
+		$remote = get_transient($this->cacheKey);
+
+		if (false === $remote) {
+			//Get the data
+			$remote = wp_remote_get( 
+				$this->infoUrl,
+				array(
+					'timeout' => 10,
+					'headers' => array(
+						'Accept' => 'application/json'
+					)
+				)
+			);
+
+			//Validate
+			if ( 
+				is_wp_error( $remote )
+				|| 200 !== wp_remote_retrieve_response_code( $remote )
+				|| empty( wp_remote_retrieve_body( $remote ) )
+			) {
+				return false;
+			}
+
+			//Cache
+			set_transient($this->cacheKey, $remote, DAY_IN_SECONDS);
+		}
+
+		//Parse and return
+		return json_decode(wp_remote_retrieve_body($remote));
 	}
 }
