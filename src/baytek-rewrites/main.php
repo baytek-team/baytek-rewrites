@@ -3,7 +3,7 @@
 /**
  * Plugin Name: Baytek Rewrites for Post Types
  * Description: Set parent pages for your post types and automatically manage URLs
- * Version: 1.0.4
+ * Version: 1.0.5
  * Author: Baytek
  * Author URI: https://www.baytek.ca
  * Text Domain: baytek-rewrites
