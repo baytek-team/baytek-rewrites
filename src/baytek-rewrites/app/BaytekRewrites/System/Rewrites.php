@@ -37,6 +37,11 @@ class Rewrites extends System {
 	public $feeds = ['feed', 'rdf', 'rss', 'rss2', 'atom'];
 
 	/**
+	 * Wordpress' default language
+	 */
+	public $defaultLang = ''; 
+
+	/**
 	 * Add the plugin's actions and filters for existing content
 	 */
 	public function addHooks() {
@@ -80,6 +85,9 @@ class Rewrites extends System {
 
 		//Site URL
 		$this->siteUrl = trailingslashit((string) get_site_url());
+
+		//Default language
+		$this->defaultLang = apply_filters('wpml_default_language', 'en');
 	}
 
 	/**
@@ -91,10 +99,10 @@ class Rewrites extends System {
 	 */
 	public function filterRewritePostTypeParents($post_parents = []) {
 		//Check language
-		$lang = apply_filters('wpml_current_language', 'en');
+		$lang = apply_filters('wpml_current_language', $this->defaultLang);
 
 		//See if we can find the parents in the current language
-		if ($lang != 'en') {
+		if ($lang != $this->defaultLang) {
 			foreach ($post_parents as $type => $parent_id) {
 				$translated_id = apply_filters('wpml_object_id', $parent_id, 'page', true, $lang);
 
@@ -148,18 +156,18 @@ class Rewrites extends System {
 		//Only filter posts we've set the parent for
 		if (isset($this->parents[$post->post_type]) && !empty($this->parents[$post->post_type])) {
 			//Get language details
-			$lang = apply_filters('wpml_element_language_code', 'en', ['element_id' => $post->ID, 'element_type' => $post->post_type]);
+			$lang = apply_filters('wpml_element_language_code', $this->defaultLang, ['element_id' => $post->ID, 'element_type' => $post->post_type]);
 
 			//Fallback
 			if (empty($lang)) {
-				$lang = 'en';
+				$lang = $this->defaultLang;
 			}
 
 			//Make sure parent is set correctly
 			$post->post_parent = $this->parents[$post->post_type];
 
 			//Make sure the parent language matches the content language
-			$parent_lang = apply_filters('wpml_element_language_code', 'en', ['element_id' => $post->post_parent, 'element_type' => 'page']);
+			$parent_lang = apply_filters('wpml_element_language_code', $this->defaultLang, ['element_id' => $post->post_parent, 'element_type' => 'page']);
 			if ($lang != $parent_lang) {
 				//Get the translated parent
 				$translated_id = apply_filters('wpml_object_id', $post->post_parent, 'page', true, $lang);
@@ -171,7 +179,7 @@ class Rewrites extends System {
 			$post_link = sprintf(
 				'%s%s%s',
 				$this->siteUrl,
-				$lang == 'en' ? '' : trailingslashit($lang),
+				$lang == $this->defaultLang ? '' : trailingslashit($lang),
 				trailingslashit(trim(get_page_uri($post), '/'))
 			);
 		}
@@ -250,7 +258,8 @@ class Rewrites extends System {
 		$posts = get_posts([
 			'post_type' => 'any',
 			'name' => $post_name,
-			'numberposts' => -1
+			'numberposts' => -1,
+			'suppress_filters' => false
 		]);
 
 		//If no matches, then carry on
@@ -281,7 +290,8 @@ class Rewrites extends System {
 					'post_type' => 'page',
 					'name' => $parent_name,
 					'numberposts' => 1,
-					'fields' => 'ids'
+					'fields' => 'ids',
+					'suppress_filters' => false
 				]);
 
 				//If we found parents, we can look for a match
