@@ -2,10 +2,10 @@
 	"name" : "Baytek Rewrites",
 	"slug" : "baytek-rewrites",
 	"author" : "<a href='https://baytek.ca'>Baytek</a>",
-	"version" : "1.0.6",
+	"version" : "1.0.7",
 	"download_url" : "https://github.com/baytek-team/baytek-rewrites/raw/main/dist/baytek-rewrites.zip",
 	"requires" : "6.0",
-	"tested" : "6.1",
+	"tested" : "6.2",
 	"requires_php" : "7.4",
 	"last_updated" : "2023-02-10 11:00:00",
 	"sections": {

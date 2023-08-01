@@ -47,6 +47,9 @@ class Rewrites extends System {
 	public function addHooks() {
 		//Need time for WPML to exist
 		add_action('wp_loaded', [$this, 'setupRewrites']);
+
+		//Filter Yoast breadcrumbs
+		add_filter('wpseo_breadcrumb_links', [$this, 'filterYoastBreadcrumbLinks']);
 	}
 
 	/**
@@ -327,5 +330,54 @@ class Rewrites extends System {
 		if ($feed) {
 			$query->query_vars['feed'] = $feed;
 		}
+	}
+
+	/**
+	 * Filter Yoast breadcrumbs to use post parent hierarchy
+	 *
+	 * @param  array  $crumbs  The array of page IDs
+	 * 
+	 * @return array  $crumbs  The updated page IDs
+	 */
+	public function filterYoastBreadcrumbLinks($crumbs) {
+		global $post;
+
+		//Make sure we have a post we can use
+		if (!$post || !isset($this->parents[$post->post_type]) || empty($this->parents[$post->post_type])) {
+			return $crumbs;
+		}
+
+		//Get the ancestors
+		$ancestors = array_reverse(get_post_ancestors($this->parents[$post->post_type]));
+
+		//Add nodes for each post parent ancestor
+		$new_crumbs = array(reset($crumbs));
+
+		foreach ($ancestors as $ancestor) {
+			array_push(
+				$new_crumbs, [
+					'id' => $ancestor,
+					'url' => get_permalink($ancestor),
+					'text' => get_the_title($ancestor)
+				]
+			);
+		}
+
+		//Add node for post parent
+		array_push(
+			$new_crumbs, [
+				'id' => $this->parents[$post->post_type],
+				'url' => get_permalink($this->parents[$post->post_type]),
+				'text' => get_the_title($this->parents[$post->post_type])
+			]
+		);
+
+		//Finish building new crumbs
+		array_push($new_crumbs, end($crumbs));
+
+		//Set and return
+		$crumbs = $new_crumbs;
+
+		return $crumbs;
 	}
 }
