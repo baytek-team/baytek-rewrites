@@ -343,7 +343,7 @@ class Rewrites extends System {
 		global $post;
 
 		//Make sure we have a post we can use
-		if (!$post || !isset($this->parents[$post->post_type]) || empty($this->parents[$post->post_type])) {
+		if (!is_singular() || !$post || !isset($this->parents[$post->post_type]) || empty($this->parents[$post->post_type])) {
 			return $crumbs;
 		}
 
