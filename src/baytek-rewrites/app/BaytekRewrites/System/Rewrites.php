@@ -74,6 +74,9 @@ class Rewrites extends System {
 
 		//Parse the request and check for applicable post types
 		add_action('parse_request', [$this, 'parseRequestForPosts']);
+
+		//Get post parent for requested post type
+		add_filter('rewrite_get_post_type_parent_id', [$this, 'getPostTypeParentId'], 10, 2);
 	}
 
 	/**
@@ -379,5 +382,22 @@ class Rewrites extends System {
 		$crumbs = $new_crumbs;
 
 		return $crumbs;
+	}
+
+	/**
+	 * Get the post type parent ID for the requested post type
+	 * 
+	 * @param  int     $parent_id  The parent ID
+	 * @param  string  $post_type  The requested post type
+	 * 
+	 * @return int 	   $parent_id  The updated parent ID, if we have it
+	 */
+	public function getPostTypeParentId($parent_id, $post_type) {
+		//If it's set in the array, update the value
+		if (isset($this->parents[$post_type])) {
+			$parent_id = $this->parents[$post_type];
+		}
+
+		return $parent_id;
 	}
 }
