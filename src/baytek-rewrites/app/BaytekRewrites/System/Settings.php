@@ -136,6 +136,9 @@ class Settings extends System {
 			//Make sure it really has changed
 			if ($value == $old[$type]) continue;
 
+			//We don't change the parents of hierarchical post types
+			if (is_post_type_hierarchical($type)) continue;
+
 			//If no parent is chosen, then set the new value to 0
 			if (empty($value)) $value = 0;
 

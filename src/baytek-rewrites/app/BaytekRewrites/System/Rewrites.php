@@ -161,6 +161,10 @@ class Rewrites extends System {
 
 		//Only filter posts we've set the parent for
 		if (isset($this->parents[$post->post_type]) && !empty($this->parents[$post->post_type])) {
+			//Get hierarchical details
+			$is_hierarchical = is_post_type_hierarchical($post->post_type);
+			$ancestor = null;
+
 			//Get language details
 			$lang = apply_filters('wpml_element_language_code', $this->defaultLang, ['element_id' => $post->ID, 'element_type' => $post->post_type]);
 
@@ -169,23 +173,36 @@ class Rewrites extends System {
 				$lang = $this->defaultLang;
 			}
 
-			//Make sure parent is set correctly
-			$post->post_parent = $this->parents[$post->post_type];
+			//Make sure parent is set correctly (flat post types only)
+			if (!$is_hierarchical) {
+				$post->post_parent = $this->parents[$post->post_type];
+			}
+			else {
+				$ancestor = $this->parents[$post->post_type];
+			}
 
 			//Make sure the parent language matches the content language
 			$parent_lang = apply_filters('wpml_element_language_code', $this->defaultLang, ['element_id' => $post->post_parent, 'element_type' => 'page']);
 			if ($lang != $parent_lang) {
 				//Get the translated parent
 				$translated_id = apply_filters('wpml_object_id', $post->post_parent, 'page', true, $lang);
-				//Reset it
-				$post->post_parent = $translated_id;
+
+				//Reset it (flat post types only)
+				if (!$is_hierarchical) {
+					$post->post_parent = $translated_id;
+				}
+				else {
+					$ancestor = $translated_id;
+				}
 			}
+
 
 			//Figure out permalink
 			$post_link = sprintf(
-				'%s%s%s',
+				'%s%s%s%s',
 				$this->siteUrl,
 				$lang == $this->defaultLang ? '' : trailingslashit($lang),
+				$is_hierarchical && $ancestor != null ? trailingslashit(trim(get_page_uri($ancestor))) : '',
 				trailingslashit(trim(get_page_uri($post), '/'))
 			);
 		}
@@ -203,6 +220,9 @@ class Rewrites extends System {
 	public function saveAdditionalPostData($post_id, $post, $update) {
 		//Check if we have a post parent available
 		if (!isset($this->parents[$post->post_type]) || empty($this->parents[$post->post_type])) return;
+
+		//Don't replace post parent of a hierarchical post type
+		if (is_post_type_hierarchical($post->post_type)) return;
 
 		//Prepare the array of data
 		$data = [
