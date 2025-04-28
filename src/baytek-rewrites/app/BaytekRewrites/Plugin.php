@@ -18,7 +18,7 @@ class Plugin extends BasePlugin {
 	 * Plugin constants
 	 */
 	const TEXTDOMAIN = 'baytek-rewrites';
-	const VERSION = '1.0.9';
+	const VERSION = '1.1.1';
 
 	/**
 	 * Set the plugin paths

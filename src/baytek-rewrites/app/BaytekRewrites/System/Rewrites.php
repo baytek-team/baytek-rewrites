@@ -182,10 +182,10 @@ class Rewrites extends System {
 			}
 
 			//Make sure the parent language matches the content language
-			$parent_lang = apply_filters('wpml_element_language_code', $this->defaultLang, ['element_id' => $post->post_parent, 'element_type' => 'page']);
+			$parent_lang = apply_filters('wpml_element_language_code', $this->defaultLang, ['element_id' => $this->parents[$post->post_type], 'element_type' => 'page']);
 			if ($lang != $parent_lang) {
 				//Get the translated parent
-				$translated_id = apply_filters('wpml_object_id', $post->post_parent, 'page', true, $lang);
+				$translated_id = apply_filters('wpml_object_id', $this->parents[$post->post_type], 'page', true, $lang);
 
 				//Reset it (flat post types only)
 				if (!$is_hierarchical) {
@@ -195,7 +195,6 @@ class Rewrites extends System {
 					$ancestor = $translated_id;
 				}
 			}
-
 
 			//Figure out permalink
 			$post_link = sprintf(
