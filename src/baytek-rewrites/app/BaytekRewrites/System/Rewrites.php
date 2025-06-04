@@ -164,6 +164,7 @@ class Rewrites extends System {
 			//Get hierarchical details
 			$is_hierarchical = is_post_type_hierarchical($post->post_type);
 			$ancestor = null;
+			$parent_id = apply_filters('baytek_rewrites_parent_id', $this->parents[$post->post_type], $post);
 
 			//Get language details
 			$lang = apply_filters('wpml_element_language_code', $this->defaultLang, ['element_id' => $post->ID, 'element_type' => $post->post_type]);
@@ -175,17 +176,17 @@ class Rewrites extends System {
 
 			//Make sure parent is set correctly (flat post types only)
 			if (!$is_hierarchical) {
-				$post->post_parent = $this->parents[$post->post_type];
+				$post->post_parent = $parent_id;
 			}
 			else {
-				$ancestor = $this->parents[$post->post_type];
+				$ancestor = $parent_id;
 			}
 
 			//Make sure the parent language matches the content language
 			$parent_lang = apply_filters('wpml_element_language_code', $this->defaultLang, ['element_id' => $this->parents[$post->post_type], 'element_type' => 'page']);
 			if ($lang != $parent_lang) {
 				//Get the translated parent
-				$translated_id = apply_filters('wpml_object_id', $this->parents[$post->post_type], 'page', true, $lang);
+				$translated_id = apply_filters('wpml_object_id', $parent_id, 'page', true, $lang);
 
 				//Reset it (flat post types only)
 				if (!$is_hierarchical) {
@@ -240,7 +241,10 @@ class Rewrites extends System {
 		//If we don't have a valid parent, abort
 		if (empty($pages)) return;
 
-		$data['post_parent'] = $pages[0];
+		//Allow filtering
+		$parent_id = apply_filters('baytek_rewrites_parent_id', $pages[0], $post);
+
+		$data['post_parent'] = $parent_id;
 
 		//Remove this hook and update the parent
 		remove_action('save_post', [$this, 'saveAdditionalPostData']);
@@ -331,6 +335,29 @@ class Rewrites extends System {
 					//If we have matches, we can use these in the query
 					if (!empty($matches)) {
 						$posts = array_values($matches); //array_values reindexes the array, so we always have a 0th element
+					}
+					//Hierarchical posts don't have post parents overwritten, so check for a match on the parents using IDs and URLs
+					else {
+						//Initial post type
+						$found_post_type = $posts[0]->post_type;
+
+						//Look for matches in our set parents
+						foreach ($this->parents as $post_type => $parent_id) {
+							if ($parent_id == $parents[0]) {
+								$found_post_type = $post_type;
+								break;
+							}
+						}
+
+						//Now match against the hopefully correct new post type
+						$matches = array_filter($posts, function($post) use ($found_post_type) {
+							return $post->post_type == $found_post_type;
+						});
+
+						//If we have matches, we can use these in the query
+						if (!empty($matches)) {
+							$posts = array_values($matches); //array_values reindexes the array, so we always have a 0th element
+						}
 					}
 				}
 			}
