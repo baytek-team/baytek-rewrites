@@ -362,15 +362,15 @@ class Rewrites extends System {
 				}
 				//If the parents aren't one of our pages, this could be hierarchical post type - so check the URLs
 				else {
+					$post_parts = explode('/', trim(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH), '/'));
+
+					//Remove the post name
+					array_pop($post_parts);
+
 					foreach ($posts as $post) {
 						if ($post->post_parent) {
 							$parent_url = trim(parse_url(get_permalink($post->post_parent), PHP_URL_PATH), '/');
-
 							$parent_parts = explode('/', $parent_url);
-							$post_parts = explode('/', $stripped);
-
-							//Remove the post name
-							array_pop($post_parts);
 
 							if ($parent_parts == $post_parts) {
 								$posts = [$post];
