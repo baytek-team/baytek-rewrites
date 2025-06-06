@@ -311,82 +311,97 @@ class Rewrites extends System {
 		}
 		//If more than one match, look at the parent post name
 		else {
-			$parent_name = array_pop($requested);
+			//Let's compare permalinks, that should be the easiest thing
+			$full_requested = trim(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH), '/');
 
-			//If we have a parent name, we can check it
-			if (!empty($parent_name)) {
-				$parents = get_posts([
-					'post_type' => 'page',
-					'name' => $parent_name,
-					'numberposts' => 1,
-					'fields' => 'ids',
-					'suppress_filters' => false
-				]);
+			foreach ($posts as $post) {
+				$post_url = trim(parse_url(get_permalink($post->ID), PHP_URL_PATH), '/');
 
-				//If we found parents, we can look for a match
-				if (!empty($parents)) {
-					$post_parent = $parents[0];
+				if ($post_url == $full_requested) {
+					$posts = [$post];
+					break;
+				}
+			}
 
-					//Match post_parent to the parent ID we found
-					$matches = array_filter($posts, function($post) use ($post_parent) {
-						return $post->post_parent == $post_parent;
-					});
+			//Do this other stuff if somehow we weren't able to match on the permalink idk why we wouldn't though
+			if (count($posts) > 1) {
+				$parent_name = array_pop($requested);
 
-					//If we have matches, we can use these in the query
-					if (!empty($matches)) {
-						$posts = array_values($matches); //array_values reindexes the array, so we always have a 0th element
-					}
-					//Hierarchical posts don't have post parents overwritten, so check for a match on the parents using IDs and URLs
-					else {
-						//Initial post type
-						$found_post_type = $posts[0]->post_type;
+				//If we have a parent name, we can check it
+				if (!empty($parent_name)) {
+					$parents = get_posts([
+						'post_type' => 'page',
+						'name' => $parent_name,
+						'numberposts' => 1,
+						'fields' => 'ids',
+						'suppress_filters' => false
+					]);
 
-						//Look for matches in our set parents
-						foreach ($this->parents as $post_type => $parent_id) {
-							if ($parent_id == $parents[0]) {
-								$found_post_type = $post_type;
-								break;
-							}
-						}
+					//If we found parents, we can look for a match
+					if (!empty($parents)) {
+						$post_parent = $parents[0];
 
-						//Now match against the hopefully correct new post type
-						$matches = array_filter($posts, function($post) use ($found_post_type) {
-							return $post->post_type == $found_post_type;
+						//Match post_parent to the parent ID we found
+						$matches = array_filter($posts, function($post) use ($post_parent) {
+							return $post->post_parent == $post_parent;
 						});
 
 						//If we have matches, we can use these in the query
 						if (!empty($matches)) {
 							$posts = array_values($matches); //array_values reindexes the array, so we always have a 0th element
 						}
+						//Hierarchical posts don't have post parents overwritten, so check for a match on the parents using IDs and URLs
+						else {
+							//Initial post type
+							$found_post_type = $posts[0]->post_type;
+
+							//Look for matches in our set parents
+							foreach ($this->parents as $post_type => $parent_id) {
+								if ($parent_id == $parents[0]) {
+									$found_post_type = $post_type;
+									break;
+								}
+							}
+
+							//Now match against the hopefully correct new post type
+							$matches = array_filter($posts, function($post) use ($found_post_type) {
+								return $post->post_type == $found_post_type;
+							});
+
+							//If we have matches, we can use these in the query
+							if (!empty($matches)) {
+								$posts = array_values($matches); //array_values reindexes the array, so we always have a 0th element
+							}
+						}
 					}
-				}
-				//If the parents aren't one of our pages, this could be hierarchical post type - so check the URLs
-				else {
-					$post_parts = explode('/', trim(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH), '/'));
+					//If the parents aren't one of our pages, this could be hierarchical post type - so check the URLs
+					else {
+						$post_parts = explode('/', $full_requested);
 
-					//Remove the post name
-					array_pop($post_parts);
+						//Remove the post name
+						array_pop($post_parts);
 
-					foreach ($posts as $post) {
-						if ($post->post_parent) {
-							$parent_url = trim(parse_url(get_permalink($post->post_parent), PHP_URL_PATH), '/');
-							$parent_parts = explode('/', $parent_url);
+						foreach ($posts as $post) {
+							if ($post->post_parent) {
+								$parent_url = trim(parse_url(get_permalink($post->post_parent), PHP_URL_PATH), '/');
+								$parent_parts = explode('/', $parent_url);
 
-							if ($parent_parts == $post_parts) {
-								$posts = [$post];
-								break;
+								if ($parent_parts == $post_parts) {
+									$posts = [$post];
+									break;
+								}
 							}
 						}
 					}
 				}
+
+				//If it's not a parented post type, don't interfere
+				if (!in_array($posts[0]->post_type, $this->parented)) {
+					return;
+				}
 			}
 
-			//If it's not a parented post type, don't interfere
-			if (!in_array($posts[0]->post_type, $this->parented)) {
-				return;
-			}
-
-			//Otherwise, use the first result, whether we find a parent match or not
+			//Otherwise, use the first result, whether we find a permalink or parent match or not
 			$query->query_vars = [
 				'post_type' => $posts[0]->post_type,
 				// 'name' => $post_name
